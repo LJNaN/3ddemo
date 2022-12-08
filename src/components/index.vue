@@ -40,6 +40,7 @@ let Camera = null,
   SpotLight = null,
   RectAreaLight = null,
   isOrthographicCamera = ref(false),
+  isMirrorFloor = ref(false),
 
   animateFlag = (() => { }),
   beforeChoose = (() => { }),
@@ -139,6 +140,17 @@ function initCamera() {
 function initScene() {
   Scene = new THREE.Scene();
   RectAreaLightUniformsLib.init();
+  const skyArr = [
+    '/texture/px.png',
+    '/texture/nx.png',
+    '/texture/py.png',
+    '/texture/ny.png',
+    '/texture/pz.png',
+    '/texture/nz.png'
+  ]
+
+  Scene.background = new THREE.CubeTextureLoader().load(skyArr)
+
 }
 
 function initControls() {
@@ -191,13 +203,7 @@ function initLights() {
   // Scene.add(new RectAreaLightHelper(RectAreaLight))
 }
 
-function demo1() {
-  innerObject = {}
-  innerObject.interactive = []
-  animateFlag = null
-  Scene.background = new THREE.Color(0xd1e9fc)
-  Camera.position.set(20, 8, 20)
-
+function initFloor() {
   const planeGeometry = new THREE.PlaneGeometry(100, 100)
   const planeMaterial = new THREE.MeshLambertMaterial({ color: 0xdddddd })
   const plane = new THREE.Mesh(planeGeometry, planeMaterial)
@@ -205,6 +211,25 @@ function demo1() {
   plane.rotateX(-Math.PI / 2)
   innerObject.plane = plane
   Scene.add(innerObject.plane)
+
+
+  // const planeGeometry = new THREE.PlaneGeometry(100, 100)
+  // const planeMaterial = new THREE.MeshLambertMaterial({ color: 0xdddddd })
+  // const plane = new THREE.Mesh(planeGeometry, planeMaterial)
+  // plane.receiveShadow = true
+  // plane.rotateX(-Math.PI / 2)
+  // innerObject.plane = plane
+  // Scene.add(innerObject.plane)
+}
+
+function demo1() {
+  innerObject = {}
+  innerObject.interactive = []
+  animateFlag = null
+  Camera.position.set(20, 8, 20)
+
+  initFloor()
+  
 
   const geometry1 = new THREE.BoxGeometry(1, 1, 1)
   const material1 = new THREE.MeshLambertMaterial({ color: 0xb28501 })
