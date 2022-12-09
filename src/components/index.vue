@@ -7,6 +7,12 @@
   <div class="lightBtn" style="margin-top: 30px">
     <button @click.stop="handleCamera">正交摄像机(与平行光阴影范围同步) {{ isOrthographicCamera ? '已开' : '已关' }}</button>
   </div>
+  <div class="lightBtn" style="margin-top: 60px">
+    <button @click.stop="handleFloor">镜面反射 {{ isMirrorFloor ? '已开' : '已关' }}</button>
+  </div>
+  <div class="lightBtn" style="margin-top: 90px">
+    <button @click.stop="handleFog">雾 {{ isFog ? '已开' : '已关' }}</button>
+  </div>
 </template>
 
 <script setup>
@@ -14,7 +20,8 @@ import { onBeforeMount, onMounted, watch, ref, reactive } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib';
-import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper';
+import { Reflector } from "three/examples/jsm/objects/Reflector";
+import { Water as ThreeWater } from "three/examples/jsm/objects/Water";
 
 const lights = ref([
   { name: '环境光', open: true },
@@ -41,6 +48,7 @@ let Camera = null,
   RectAreaLight = null,
   isOrthographicCamera = ref(false),
   isMirrorFloor = ref(false),
+  isFog = ref(false),
 
   animateFlag = (() => { }),
   beforeChoose = (() => { }),
@@ -56,6 +64,7 @@ onMounted(() => {
   initScene()
   initControls()
   initLights()
+  initFog()
   demo1()
 
   animate()
@@ -204,22 +213,35 @@ function initLights() {
 }
 
 function initFloor() {
+  let plane = null
+
+  if(innerObject.plane) {
+    const floor = Scene.children.find(e => e.name === 'floor')
+    Scene.remove(floor)
+  }
+
   const planeGeometry = new THREE.PlaneGeometry(100, 100)
-  const planeMaterial = new THREE.MeshLambertMaterial({ color: 0xdddddd })
-  const plane = new THREE.Mesh(planeGeometry, planeMaterial)
+
+  if (!isMirrorFloor.value) {
+    const planeMaterial = new THREE.MeshLambertMaterial({ color: 0xdddddd })
+    plane = new THREE.Mesh(planeGeometry, planeMaterial)
+  } else {
+    plane = new Reflector(
+      planeGeometry,
+      {
+        clipBias: 0.03,
+        textureWidth: window.innerWidth * window.devicePixelRatio,
+        textureHeight: window.innerHeight * window.devicePixelRatio,
+        color: new THREE.Color(0x888888),
+      }
+    )
+  }
+
+  plane.name = 'floor'
   plane.receiveShadow = true
   plane.rotateX(-Math.PI / 2)
   innerObject.plane = plane
   Scene.add(innerObject.plane)
-
-
-  // const planeGeometry = new THREE.PlaneGeometry(100, 100)
-  // const planeMaterial = new THREE.MeshLambertMaterial({ color: 0xdddddd })
-  // const plane = new THREE.Mesh(planeGeometry, planeMaterial)
-  // plane.receiveShadow = true
-  // plane.rotateX(-Math.PI / 2)
-  // innerObject.plane = plane
-  // Scene.add(innerObject.plane)
 }
 
 function demo1() {
@@ -255,7 +277,7 @@ function demo1() {
   const geometry4 = new THREE.BoxGeometry(20, 0.1, 20);
   const material4 = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3, metalness: 0 });
   const floor = new THREE.Mesh(geometry4, material4);
-  floor.position.set(0, 0, -30)
+  floor.position.set(0, 0.2, -30)
   innerObject.floor = floor
   Scene.add(floor);
 
@@ -319,28 +341,15 @@ function demo1() {
   Scene.add(box10);
 
 
-  // 可交互的模型
-  innerObject.interactive.push(innerObject.box1, innerObject.box2, innerObject.box3)
-
-  innerObject.animate = (() => {
-    innerObject.box1.rotation.x += 0.01
-    innerObject.box1.rotation.y += 0.01
-    innerObject.box2.rotation.x += 0.001
-    innerObject.box2.rotation.y += 0.001
-    innerObject.box3.rotation.x += 0.005
-    innerObject.box3.rotation.y += 0.005
-    innerObject.box6.rotation.x += 0.01
-    innerObject.box6.rotation.y += 0.01
-  })
-  animateFlag = innerObject.animate
+ 
 
 
 
   let Sprite1 = null
   addSprite({
     imgSrc: '/images/1.png',
-    text1: 'Basic',
-    text2: 'Sprite'
+    text1: 'Basic 材质',
+    text2: 'Sprite 标签'
   }, ((res) => {
     Sprite1 = res
     Sprite1.scale.set(3, 1, 1);
@@ -371,6 +380,29 @@ function demo1() {
   }))
 
 
+  // 水
+  const waterGeometry = new THREE.PlaneBufferGeometry( 300, 300 );
+ 
+  const Water = new ThreeWater(
+    waterGeometry,
+    {
+      textureWidth: 512,
+      textureHeight: 512,
+      waterNormals: new THREE.TextureLoader().load('/texture/waternormals.jpg', (texture) => {
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      }),
+      alpha: 1.0,
+      sunDirection: DirectionalLight.position.clone().normalize(),
+      sunColor: 0xffffff,
+      waterColor: 0xc1dbfe,
+      distortionScale: 13.7,
+      fog: Scene.fog
+    }
+  );
+  Water.rotation.x = - Math.PI / 2;
+  Water.position.y = -0.2;
+  Scene.add( Water );
+  innerObject.Water = Water
 
 
   const axesHelper = new THREE.AxesHelper(10);
@@ -393,6 +425,22 @@ function demo1() {
     }
   })
 
+  // 可交互的模型
+  innerObject.interactive.push(innerObject.box1, innerObject.box2, innerObject.box3)
+
+  innerObject.animate = (() => {
+    innerObject.box1.rotation.x += 0.01
+    innerObject.box1.rotation.y += 0.01
+    innerObject.box2.rotation.x += 0.001
+    innerObject.box2.rotation.y += 0.001
+    innerObject.box3.rotation.x += 0.005
+    innerObject.box3.rotation.y += 0.005
+    innerObject.box6.rotation.x += 0.01
+    innerObject.box6.rotation.y += 0.01
+    Water.material.uniforms.time.value += 0.3 / 60
+  })
+  animateFlag = innerObject.animate
+
   window.addEventListener('click', choose); // 监听窗口鼠标单击事件
 }
 
@@ -406,7 +454,7 @@ function addSprite(config = {}, cb) {
     canvas.height = canvasImage.height / 3
     context.drawImage(canvasImage, 0, 0, canvasImage.width / 3, canvasImage.height / 3)
     context.font = "Bold 12px sans-serif";
-    context.fillStyle = "#81161f";
+    context.fillStyle = "#05184b";
     context.textAlign = 'center'
     if(config.text1 && config.text2) {
       context.fillText(config.text1, canvasImage.width / 3 / 2, canvasImage.height / 3 * 0.4);
@@ -426,6 +474,16 @@ function addSprite(config = {}, cb) {
     }
   }
 }
+
+
+function initFog() {
+  if(isFog.value) {
+    Scene.fog = new THREE.Fog( 0xc4ddfc, 0.01, 100);
+  } else {
+    Scene.fog = null
+  }
+}
+
 
 
 function animate() {
@@ -491,9 +549,20 @@ function handleLight(item) {
 
 function handleCamera() {
   isOrthographicCamera.value = !isOrthographicCamera.value
-  console.log('isOrthographicCamera: ', isOrthographicCamera.value);
   initCamera()
 }
+
+function handleFloor() {
+  isMirrorFloor.value = !isMirrorFloor.value
+  initFloor()
+}
+
+function handleFog() {
+  isFog.value = !isFog.value
+  initFog()
+}
+
+
 
 window.addEventListener('resize', onWindowResize);
 function onWindowResize() {
