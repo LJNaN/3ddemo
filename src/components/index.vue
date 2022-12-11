@@ -13,15 +13,22 @@
   <div class="lightBtn" style="margin-top: 90px">
     <button @click.stop="handleFog">雾 {{ isFog ? '已开' : '已关' }}</button>
   </div>
+  <div class="lightBtn" style="margin-top: 120px">
+    <button @click.stop="modelActive(0)">人物 停</button>
+    <button @click.stop="modelActive(3)">人物 走</button>
+    <button @click.stop="modelActive(1)">人物 跑</button>
+  </div>
 </template>
 
 <script setup>
 import { onBeforeMount, onMounted, watch, ref, reactive } from 'vue';
 import * as THREE from 'three';
+import Stats from 'three/examples/jsm/libs/stats.module.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib';
 import { Reflector } from "three/examples/jsm/objects/Reflector";
 import { Water as ThreeWater } from "three/examples/jsm/objects/Water";
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const lights = ref([
   { name: '环境光', open: true },
@@ -37,7 +44,10 @@ let windowWidth = document.body.clientWidth
 let innerObject = {}
 
 
-let Camera = null,
+let
+  clock = null,
+  myStats = null,
+  Camera = null,
   Scene = null,
   Controls = null,
   Renderer = null,
@@ -70,7 +80,7 @@ onMounted(() => {
   animate()
 
   // Controls.addEventListener('end', () => {
-  //   console.log(Camera)
+  //   
   // })
 })
 
@@ -159,13 +169,18 @@ function initScene() {
   ]
 
   Scene.background = new THREE.CubeTextureLoader().load(skyArr)
+  
+  clock = new THREE.Clock()
+
+  myStats = new Stats();
+  document.getElementById('canvasContent').appendChild( myStats.dom );
 
 }
 
 function initControls() {
   Controls = new OrbitControls(Camera, Renderer.domElement)
-  Controls.autoRotate = true
-  Controls.autoRotateSpeed = 0.5
+  // Controls.autoRotate = true
+  // Controls.autoRotateSpeed = 0.5
 }
 
 function initLights() {
@@ -253,6 +268,7 @@ function demo1() {
   initFloor()
   
 
+  // 点击变色的三个box
   const geometry1 = new THREE.BoxGeometry(1, 1, 1)
   const material1 = new THREE.MeshLambertMaterial({ color: 0xb28501 })
   innerObject.box1 = new THREE.Mesh(geometry1, material1)
@@ -274,6 +290,7 @@ function demo1() {
   innerObject.box3.position.set(8, 2, 3)
   Scene.add(innerObject.box3)
 
+  // 平面光 地板和box
   const geometry4 = new THREE.BoxGeometry(20, 0.1, 20);
   const material4 = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3, metalness: 0 });
   const floor = new THREE.Mesh(geometry4, material4);
@@ -288,7 +305,8 @@ function demo1() {
   innerObject.box5 = box5
   Scene.add(box5);
 
-  const geometry6 = new THREE.BoxBufferGeometry(3, 3, 3)
+  // 6个面6个纹理
+  const geometry6 = new THREE.BoxGeometry(3, 3, 3)
   const box6ImgSrcArr = [
     "/texture/1.png",
     "/texture/2.png",
@@ -297,7 +315,6 @@ function demo1() {
     "/texture/5.png",
     "/texture/6.png"
   ]
-  // 创建一组材质， 每个材质对应立方体每个面所用到的材质
   let material6Arr = []
   box6ImgSrcArr.forEach((src) => {
     material6Arr.push(new THREE.MeshLambertMaterial({
@@ -311,6 +328,7 @@ function demo1() {
   Scene.add(box6)
 
 
+  // 4个不同的材质
   const geometry7 = new THREE.BoxGeometry(2, 2, 2);
   const material7 = new THREE.MeshBasicMaterial({ color: 0xff0000 });
   const box7 = new THREE.Mesh(geometry7, material7);
@@ -342,9 +360,7 @@ function demo1() {
 
 
  
-
-
-
+  // 精灵文本框
   let Sprite1 = null
   addSprite({
     imgSrc: '/images/1.png',
@@ -360,29 +376,64 @@ function demo1() {
   let Sprite2 = null
   addSprite({
     imgSrc: '/images/1.png',
-    text1: '点击变色/恢复'
+    text1: 'Phong 材质',
+    text2: 'Sprite 标签'
   }, ((res) => {
     Sprite2 = res
     Sprite2.scale.set(3, 1, 1);
-    Sprite2.position.set(5, 5, 5);
+    Sprite2.position.set(-15, 3, 14);
     Scene.add(Sprite2)
   }))
 
   let Sprite3 = null
   addSprite({
     imgSrc: '/images/1.png',
-    text1: '6边不同材质'
+    text1: 'Lambert 材质',
+    text2: 'Sprite 标签'
   }, ((res) => {
     Sprite3 = res
     Sprite3.scale.set(3, 1, 1);
-    Sprite3.position.set(-10, 6, 0);
+    Sprite3.position.set(-15, 3, 18);
     Scene.add(Sprite3)
+  }))
+
+  let Sprite4 = null
+  addSprite({
+    imgSrc: '/images/1.png',
+    text1: 'Standard 材质',
+    text2: 'Sprite 标签'
+  }, ((res) => {
+    Sprite4 = res
+    Sprite4.scale.set(3, 1, 1);
+    Sprite4.position.set(-15, 3, 22);
+    Scene.add(Sprite4)
+  }))
+
+  let Sprite5 = null
+  addSprite({
+    imgSrc: '/images/1.png',
+    text1: '点击变色/恢复'
+  }, ((res) => {
+    Sprite5 = res
+    Sprite5.scale.set(3, 1, 1);
+    Sprite5.position.set(5, 5, 5);
+    Scene.add(Sprite5)
+  }))
+
+  let Sprite6 = null
+  addSprite({
+    imgSrc: '/images/1.png',
+    text1: '6边不同贴图'
+  }, ((res) => {
+    Sprite6 = res
+    Sprite6.scale.set(3, 1, 1);
+    Sprite6.position.set(-10, 6, 0);
+    Scene.add(Sprite6)
   }))
 
 
   // 水
-  const waterGeometry = new THREE.PlaneBufferGeometry( 300, 300 );
- 
+  const waterGeometry = new THREE.PlaneGeometry( 300, 300 );
   const Water = new ThreeWater(
     waterGeometry,
     {
@@ -404,6 +455,27 @@ function demo1() {
   Scene.add( Water );
   innerObject.Water = Water
 
+
+  // 模型
+  new GLTFLoader().load('/models/Soldier.glb', (gltf) => {
+    
+    gltf.scene.scale.set(3, 3, 3)
+    gltf.scene.position.set(20, 0, -20)
+    gltf.scene.rotateY(Math.PI / 2)
+    gltf.scene.traverse(item => {
+      if(item.isMesh) {
+        item.castShadow = true
+      }
+    })
+
+
+    innerObject.model = gltf
+    innerObject.modelAnimationMixer = new THREE.AnimationMixer(innerObject.model.scene)
+    innerObject.modelActiveID = 3
+
+    modelActive(innerObject.modelActiveID)
+    Scene.add(innerObject.model.scene)
+  })
 
   const axesHelper = new THREE.AxesHelper(10);
   Scene.add(axesHelper);
@@ -485,11 +557,59 @@ function initFog() {
 }
 
 
+function modelActive(id) {
+  // 0 立定 1 跑 2 Tpose 3 走
+  innerObject.modelActiveID = id
+  
+  if(innerObject.modelAnimationMixer) {
+    if(innerObject.modelAnimationMixer._actions.length) {
+      innerObject.modelAnimationMixer._actions.forEach(item => {
+        item.enabled = false
+      })
+    }
+    const control = innerObject.modelAnimationMixer.clipAction(innerObject.model.animations[id])
+    control.enabled = true
+    control.play()
+
+    innerObject.modelMove = (() => {
+      const model = innerObject.model.scene
+      let speed = 0
+      if(innerObject.modelActiveID === 1) {
+        speed = 0.12
+      } else if (innerObject.modelActiveID === 3) {
+        speed = 0.04
+      }
+      
+      if(model.position.x <= -20 && model.position.z <= 20) {
+        model.rotation.y = Math.PI
+        model.position.z += speed
+      } else if (model.position.z >= 20 && model.position.x <= 20) {
+        model.rotation.y = -Math.PI / 2
+        model.position.x += speed
+      } else if (model.position.z >= -20 && model.position.x >= 20) {
+        model.rotation.y = 0
+        model.position.z -= speed
+      } else if (model.position.z <= -20 && model.position.x >=- 20) {
+        model.rotation.y = Math.PI / 2
+        model.position.x -= speed
+      }
+    })
+  }
+}
+
+
 
 function animate() {
   requestAnimationFrame(animate)
   Controls.update()
+  if (innerObject.modelAnimationMixer) {
+    innerObject.modelAnimationMixer.update(clock.getDelta())
+  }
   animateFlag()
+  if(innerObject.modelMove) {
+    innerObject.modelMove()
+  }
+  myStats.update()
   Renderer.render(Scene, Camera)
 }
 
@@ -520,7 +640,7 @@ function choose(event) {
   })
   let intersects = raycaster.intersectObjects(arr)
   clickMeshArr = intersects
-  console.log('intersects: ', intersects);
+  
 
   afterChoose()
 }
@@ -583,10 +703,10 @@ onBeforeMount(() => {
 .lightBtn {
   position: fixed;
   width: 100%;
-  top: 20px;
-  left: 20px;
+  top: 10px;
+  left: 90px;
   display: flex;
-
+  user-select: none;
 }
 
 .lightBtn button {
