@@ -12,11 +12,15 @@
   </div>
   <div class="lightBtn" style="margin-top: 90px">
     <button @click.stop="handleFog">雾 {{ isFog ? '已开' : '已关' }}</button>
+    <button @click.stop="handleSnow">雪(粒子) {{ isSnow ? '已开' : '已关' }}</button>
   </div>
   <div class="lightBtn" style="margin-top: 120px">
     <button @click.stop="modelActive(0)">人物 停</button>
     <button @click.stop="modelActive(3)">人物 走</button>
     <button @click.stop="modelActive(1)">人物 跑</button>
+  </div>
+  <div class="lightBtn" style="margin-top: 150px">
+    <button @click.stop="handleEffect">后处理 {{ isAfterEffect ? '已开' : '已关' }}</button>
   </div>
 </template>
 
@@ -29,6 +33,10 @@ import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLigh
 import { Reflector } from "three/examples/jsm/objects/Reflector";
 import { Water as ThreeWater } from "three/examples/jsm/objects/Water";
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRenderer';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { AfterimagePass } from 'three/examples/jsm/postprocessing/AfterimagePass.js';
 
 const lights = ref([
   { name: '环境光', open: true },
@@ -51,6 +59,7 @@ let
   Scene = null,
   Controls = null,
   Renderer = null,
+  LabelRenderer = null,
   AmbientLight = null,
   DirectionalLight = null,
   PointLight = null,
@@ -59,6 +68,10 @@ let
   isOrthographicCamera = ref(false),
   isMirrorFloor = ref(false),
   isFog = ref(false),
+  isSnow = ref(true),
+  composer = null,
+  afterimagePass = null,
+  isAfterEffect = ref(false),
 
   animateFlag = (() => { }),
   beforeChoose = (() => { }),
@@ -431,6 +444,8 @@ function demo1() {
     Scene.add(Sprite6)
   }))
 
+  // 2dcssobject
+  init2DTag()
 
   // 水
   const waterGeometry = new THREE.PlaneGeometry( 300, 300 );
@@ -477,8 +492,16 @@ function demo1() {
     Scene.add(innerObject.model.scene)
   })
 
+  initParticles('system1', "/texture/xh1.png")
+  initParticles('system2', "/texture/xh2.png")
+  initParticles('system3', "/texture/xh3.png")
+
+  initEffect()
+
+  
   const axesHelper = new THREE.AxesHelper(10);
   Scene.add(axesHelper);
+
 
 
   beforeChoose = (() => {
@@ -547,6 +570,15 @@ function addSprite(config = {}, cb) {
   }
 }
 
+function initEffect() {
+  // postprocessing
+  composer = new EffectComposer( Renderer );
+  composer.addPass( new RenderPass( Scene, Camera ) );
+  afterimagePass = new AfterimagePass();
+  afterimagePass.uniforms['damp'].value = 0.94
+  composer.addPass( afterimagePass );
+}
+
 
 function initFog() {
   if(isFog.value) {
@@ -575,9 +607,9 @@ function modelActive(id) {
       const model = innerObject.model.scene
       let speed = 0
       if(innerObject.modelActiveID === 1) {
-        speed = 0.12
+        speed = 0.22
       } else if (innerObject.modelActiveID === 3) {
-        speed = 0.04
+        speed = 0.087
       }
       
       if(model.position.x <= -20 && model.position.z <= 20) {
@@ -598,6 +630,110 @@ function modelActive(id) {
 }
 
 
+function init2DTag() {
+  const div = document.createElement('div');
+  div.innerHTML = 'CSS2DObject 标签';
+  div.style.padding = '4px 10px';
+  div.style.color = '#fff';
+  div.style.fontSize = '12px';
+  div.style.position = 'absolute';
+  div.style.width = '80px';
+  div.style.height = '40px';
+  div.style.backgroundColor = 'rgba(25,25,25,0.5)';
+  div.style.borderRadius = '5px';
+  div.style.pointerEvents = 'all';
+  const label = new CSS2DObject(div)
+  innerObject.box8.add(label)
+  label.position.y = innerObject.box8.position.y + 0.2
+
+  LabelRenderer = new CSS2DRenderer();
+  LabelRenderer.setSize( window.innerWidth, window.innerHeight );
+  LabelRenderer.domElement.style.position = 'absolute';
+  LabelRenderer.domElement.style.top = 0;
+  LabelRenderer.domElement.style.left = 0;
+  LabelRenderer.domElement.style.pointerEvents = 'none';
+  document.body.appendChild( LabelRenderer.domElement );
+}
+
+function initParticles(name, path) {
+  let geom = new THREE.BufferGeometry()
+  let material = new THREE.PointsMaterial({
+    size: 2,
+    transparent: true,
+    opacity: 0.6,
+    vertexColors: false,
+    map: new THREE.TextureLoader().load(path),
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    sizeAttenuation: true
+  })
+
+  let positions = []
+  let velocities = []
+
+  let range = 500
+  for(let i = 0; i < 10000; i++) {
+    positions.push(
+      Math.random() * range - range / 2,
+      Math.random() * range - 50,
+      Math.random() * range - range / 2,
+    )
+
+    velocities.push(
+      (Math.random() - 0.5) / 3,
+      0.1 + Math.random() / 5,
+      (Math.random() - 0.5) / 3
+    )
+  }
+
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geom.setAttribute('velocity', new THREE.Float32BufferAttribute(velocities, 3))
+
+
+  let cloud = new THREE.Points(geom, material)
+  cloud.name = name
+  Scene.add(cloud)
+}
+
+function updateSnow() {
+  Scene.children.forEach(child => {
+    if(child instanceof THREE.Points) {
+      let cloud = child
+      const pos_BufferAttr = cloud.geometry.getAttribute('position')
+      const vel_BufferAttr = cloud.geometry.getAttribute('velocity')
+
+      for(let i = 0; i < pos_BufferAttr.count; i++) {
+        let pos_x = pos_BufferAttr.getX(i)
+        let pos_y = pos_BufferAttr.getY(i)
+        let pos_z = pos_BufferAttr.getZ(i)
+
+        let vel_x = vel_BufferAttr.getX(i)
+        let vel_y = vel_BufferAttr.getY(i)
+        let vel_z = vel_BufferAttr.getZ(i)
+
+        pos_x = pos_x - vel_x
+        pos_y = pos_y - vel_y
+        pos_z = pos_z - vel_z
+
+
+        if(pos_x <= -200 || pos_x >= 200) vel_x = vel_x * -1
+        if(pos_y <= 0) pos_y = 600
+        if(pos_z <= -200 || pos_z >= 200) vel_z = vel_z * -1
+
+        pos_BufferAttr.setX(i, pos_x)
+        pos_BufferAttr.setY(i, pos_y)
+        pos_BufferAttr.setZ(i, pos_z)
+
+        vel_BufferAttr.setX(i, vel_x)
+        vel_BufferAttr.setZ(i, vel_z)
+      }
+      pos_BufferAttr.needsUpdate = true
+      vel_BufferAttr.needsUpdate = true
+    }
+  })
+}
+
+
 
 function animate() {
   requestAnimationFrame(animate)
@@ -609,9 +745,20 @@ function animate() {
   if(innerObject.modelMove) {
     innerObject.modelMove()
   }
+  if(isSnow.value) {
+    updateSnow()
+  }
   myStats.update()
-  Renderer.render(Scene, Camera)
+
+  if(isAfterEffect.value) {
+    composer.render()
+  } else {
+    Renderer.render(Scene, Camera)
+  }
+
+  LabelRenderer.render( Scene, Camera );
 }
+
 
 
 
@@ -680,6 +827,26 @@ function handleFloor() {
 function handleFog() {
   isFog.value = !isFog.value
   initFog()
+}
+
+function handleSnow() {
+  isSnow.value = !isSnow.value
+  if(isSnow.value) {
+    initParticles('system1', "/texture/xh1.png")
+    initParticles('system2', "/texture/xh2.png")
+    initParticles('system3', "/texture/xh3.png")
+  } else {
+    const point1 = Scene.children.find(e => e.name === 'system1')
+    const point2 = Scene.children.find(e => e.name === 'system2')
+    const point3 = Scene.children.find(e => e.name === 'system3')
+    Scene.remove(point1)
+    Scene.remove(point2)
+    Scene.remove(point3)
+  }
+}
+
+function handleEffect() {
+  isAfterEffect.value = !isAfterEffect.value
 }
 
 
