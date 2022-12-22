@@ -37,6 +37,7 @@ import { CSS2DObject, CSS2DRenderer } from 'three/examples/jsm/renderers/CSS2DRe
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { AfterimagePass } from 'three/examples/jsm/postprocessing/AfterimagePass.js';
+import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min'
 
 const lights = ref([
   { name: '环境光', open: true },
@@ -105,8 +106,14 @@ function initRenderer() {
   });
   Renderer.shadowMap.enabled = true
   Renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  Renderer.gammaOutput = true
+  Renderer.gammaFactor = 2.2
+  Renderer.toneMapping = THREE.LinearToneMapping
+  Renderer.toneMappingExposure = 1
   Renderer.setSize(windowWidth, windowHeight);
   document.getElementById('canvasContent').appendChild(Renderer.domElement);
+
+
 }
 
 function initCamera() {
@@ -497,6 +504,7 @@ function demo1() {
   initParticles('system3', "/texture/xh3.png")
 
   initEffect()
+  initGUI()
 
   
   const axesHelper = new THREE.AxesHelper(10);
@@ -757,6 +765,18 @@ function animate() {
   }
 
   LabelRenderer.render( Scene, Camera );
+}
+
+
+
+function initGUI() {
+  const gui = new GUI({ // 可接收参数
+    name: '色调映射(线性)',
+    width: 300,
+    closed: true
+  })
+
+  gui.add(Renderer, 'toneMappingExposure', 0, 1, 0.01).name("色调映射(线性)")
 }
 
 
